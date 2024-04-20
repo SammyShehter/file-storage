@@ -2,14 +2,17 @@ package p2p
 
 import (
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestTCPTransport(t *testing.T) {
-	listenAddress := ":3000"
-	tr := NewTCPTransport(listenAddress)
+	opts := TCPTransportOpts{
+		ListenAddress: ":3000",
+		HandshakeFunc: NOPHandshakeFunc,
+		Decoder: 	 GOBDecoder{},
+	}
+	tr := NewTCPTransport(opts)
 
-	assert.Equal(t, listenAddress, tr.listenAddress)
-	assert.Nil(t, tr.ListenAndAccept())
+	if err := tr.ListenAndAccept(); err != nil {
+		t.Fatalf("failed to listen and accept: %v", err)
+	}
 }
