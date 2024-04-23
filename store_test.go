@@ -2,9 +2,24 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"testing"
 )
+
+func newStore() *Store {
+	opts := StoreOpts{
+		PathTransformFunc: CASTransformfunc,
+	}
+
+	return NewStore(opts)
+}
+
+func teardown(t *testing.T, s *Store) {
+	if err := s.Clear(); err != nil {
+		t.Errorf("Failed to clear root directory. Got %s", err)
+	}
+}
 
 func TestPathTransformFunc(t *testing.T) {
 	key := "somebestpicture"
@@ -17,34 +32,37 @@ func TestPathTransformFunc(t *testing.T) {
 }
 
 func TestStore(t *testing.T) {
-	opts := StoreOpts{
-		PathTransformFunc: CASTransformfunc,
-	}
-	store := NewStore(opts)
-	testKey := "testKey"
-	testData := []byte("test data")
-	if err := store.writeStream(testKey, bytes.NewReader([]byte(testData))); err != nil {
-		t.Errorf("writeStream failed: %v", err)
-	}
+	store := newStore()
+	defer teardown(t, store)
 
-	dataRead, err := store.Read(testKey)
-	if err != nil {
-		t.Errorf("Read failed: %v", err)
-	}
+	for i := 0; i < 50; i++ {
+		testKey := fmt.Sprintf("test_key_%d", i)
+		testData := []byte(fmt.Sprintf("test_data_%d", i))
 
-	b, _ := io.ReadAll(dataRead)
+		if err := store.Write(testKey, bytes.NewReader([]byte(testData))); err != nil {
+			t.Errorf("Store.Write failed: %v", err)
+		}
 
-	if string(testData) != string(b) {
-		t.Errorf("Read failed. Expected %s, got %s", "test data", string(b))
-	}
+		if ok := store.Has(testKey); !ok {
+			t.Errorf("store.Has failed. Expected %v, got %v", true, ok)
+		}
 
-	h := store.Has(testKey)
-	if !h {
-		t.Errorf("Has failed. Expected %v, got %v", true, h)
-	}
+		dataRead, err := store.Read(testKey)
+		if err != nil {
+			t.Errorf("Read failed: %v", err)
+		}
 
-	err = store.DeleteRoot(testKey)
-	if err != nil {
-		t.Errorf("Delete failed: %v", err)
+		b, _ := io.ReadAll(dataRead)
+		if string(testData) != string(b) {
+			t.Errorf("Read failed. Expected %s, got %s", "test data", string(b))
+		}
+
+		if err = store.DeleteRoot(testKey); err != nil {
+			t.Errorf("DeleteFile failed: %v", err)
+		}
+
+		if ok := store.Has(testKey); ok {
+			t.Errorf("store.Has failed. Expected %v, got %v", false, ok)
+		}
 	}
 }

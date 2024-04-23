@@ -11,6 +11,8 @@ import (
 	"strings"
 )
 
+const defaultRootFolderName = "store"
+
 type PathKey struct {
 	PathName string
 	FileName string
@@ -42,8 +44,6 @@ func CASTransformfunc(s string) PathKey {
 func DefaultPathTransformFunc(s string) PathKey {
 	return PathKey{PathName: s, FileName: s}
 }
-
-const defaultRootFolderName = "store"
 
 type PathTransformFunc func(string) PathKey
 
@@ -87,6 +87,10 @@ func (s *Store) DeleteRoot(key string) error {
 	return os.RemoveAll(rootFolder)
 }
 
+func (s *Store) Clear() error {
+	return os.RemoveAll(s.Root)
+}
+
 func (s *Store) Read(key string) (io.Reader, error) {
 	f, err := s.readStream(key)
 	if err != nil {
@@ -103,6 +107,10 @@ func (s *Store) Read(key string) (io.Reader, error) {
 func (s *Store) readStream(key string) (io.ReadCloser, error) {
 	pathKey := s.PathTransformFunc(key)
 	return os.Open(s.Root + "/" + pathKey.FullPath())
+}
+
+func (s *Store) Write(key string, r io.Reader) error {
+	return s.writeStream(key, r)
 }
 
 func (s *Store) writeStream(key string, r io.Reader) error {

@@ -3,33 +3,41 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/sammyshehter/file-storage/p2p"
 )
 
 func OnPeer(p p2p.Peer) error {
-	fmt.Println("SOme calculation on connect hook")
+	fmt.Println("Some calculation on connect hook")
 	return nil
 }
 
 func main() {
-	opts := p2p.TCPTransportOpts{
+	tcpTransportOpts := p2p.TCPTransportOpts{
 		ListenAddress: ":3000",
 		HandshakeFunc: p2p.NOPHandshakeFunc,
 		Decoder:       p2p.NOPDecoder{},
 		OnPeer:        OnPeer,
 	}
 
-	tr := p2p.NewTCPTransport(opts)
-	go func() {
-		for {
-			msg := <-tr.Consume()
-			fmt.Printf("received message: %s", string(msg.Payload))
-		}
-	}()
-
-	if err := tr.ListenAndAccept(); err != nil {
-		log.Fatalf("failed to listen and accept: %v", err)
+	storeOpts := StoreOpts{
+		Root:              "store_prod",
+		PathTransformFunc: CASTransformfunc,
 	}
-	select {}
+
+	fileServerOpts := FileServerOpts{
+		storeOpts:        storeOpts,
+		tcpTransportOpts: tcpTransportOpts,
+	}
+	s := NewFileServer(fileServerOpts)
+
+	go func () {
+		time.Sleep(time.Second * 3)
+		s.Stop()
+	}()
+	
+	if err := s.Start(); err != nil {
+		log.Fatal(err)
+	}
 }
