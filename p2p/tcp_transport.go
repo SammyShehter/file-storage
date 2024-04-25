@@ -72,11 +72,11 @@ func (t *TCPTransport) startAcceptLoop() {
 			fmt.Printf("TCP accept error %s\n", err)
 		}
 
-		go t.handleConn(conn)
+		go t.handleConn(conn, false)
 	}
 }
 
-func (t *TCPTransport) handleConn(conn net.Conn) {
+func (t *TCPTransport) handleConn(conn net.Conn, outbound bool) {
 	var err error
 	defer func() {
 		if err != nil {
@@ -85,8 +85,7 @@ func (t *TCPTransport) handleConn(conn net.Conn) {
 		conn.Close()
 	}()
 	fmt.Printf("New incomming connection %+v\n", conn)
-	peer := newTCPPeer(conn, false)
-	fmt.Printf("New peer %+v\n", peer)
+	peer := newTCPPeer(conn, outbound)
 
 	if err := t.HandshakeFunc(peer); err != nil {
 		fmt.Printf("Handshake error: %s\n", err)
@@ -115,4 +114,13 @@ func (t *TCPTransport) handleConn(conn net.Conn) {
 
 func (t *TCPTransport) Close() error {
 	return t.listener.Close()
+}
+
+func (t *TCPTransport) Dial(addr string) error {
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		return err
+	}
+	go t.handleConn(conn, true)
+	return  nil
 }
