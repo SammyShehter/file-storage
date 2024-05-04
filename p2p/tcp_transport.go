@@ -8,23 +8,19 @@ import (
 )
 
 type TCPPeer struct {
-	conn     net.Conn
+	net.Conn
 	outbound bool
-}
-
-func (p *TCPPeer) Close() error {
-	return p.conn.Close()
 }
 
 func newTCPPeer(conn net.Conn, outbound bool) *TCPPeer {
 	return &TCPPeer{
-		conn:     conn,
-		outbound: outbound,
+		Conn:     conn,
+		outbound: outbound, 
 	}
 }
 
 type TCPTransportOpts struct {
-	ListenAddress string
+	ListenAddr string
 	HandshakeFunc HandshakeFunc
 	Decoder       Decoder
 	OnPeer        func(Peer) error
@@ -43,6 +39,10 @@ func NewTCPTransport(opts TCPTransportOpts) *TCPTransport {
 	}
 }
 
+func (t *TCPTransport) ListenAddress() string {
+	return t.ListenAddr
+}
+
 func (t *TCPTransport) Consume() <-chan RPC {
 	return t.rpcch
 }
@@ -50,14 +50,14 @@ func (t *TCPTransport) Consume() <-chan RPC {
 func (t *TCPTransport) ListenAndAccept() error {
 	var err error
 
-	t.listener, err = net.Listen("tcp", t.ListenAddress)
+	t.listener, err = net.Listen("tcp", t.ListenAddr)
 	if err != nil {
 		return err
 	}
 
 	go t.startAcceptLoop()
 
-	log.Printf("TCP transport listening on port: %s", t.ListenAddress)
+	log.Printf("TCP transport listening on port: %s", t.ListenAddr)
 
 	return nil
 }
@@ -110,6 +110,14 @@ func (t *TCPTransport) handleConn(conn net.Conn, outbound bool) {
 		rpc.From = conn.RemoteAddr()
 		t.rpcch <- rpc
 	}
+}
+
+func (p *TCPPeer) Send(b []byte) error {
+	_, err := p.Conn.Write(b)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (t *TCPTransport) Close() error {

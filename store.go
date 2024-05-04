@@ -136,7 +136,7 @@ func (s *Store) writeStream(key string, r io.Reader) error {
 		return err
 	}
 
-	fmt.Printf("written (%d bytes) to %s", n, fullPathWithRoot)
+	fmt.Printf("written (%d bytes) to %s\n", n, fullPathWithRoot)
 
 	return nil
 }

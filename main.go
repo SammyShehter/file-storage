@@ -1,24 +1,20 @@
 package main
 
 import (
-	"fmt"
+	"bytes"
 	"log"
+	"time"
 
 	"github.com/sammyshehter/file-storage/p2p"
 )
 
-func OnPeer(p p2p.Peer) error {
-	fmt.Println("Some calculation on connect hook")
-	return nil
-}
-
 func makeServer(listenAddr string, nodes ...string) *FileServer {
 	tcpTransportOpts := p2p.TCPTransportOpts{
-		ListenAddress: listenAddr,
+		ListenAddr:    listenAddr,
 		HandshakeFunc: p2p.NOPHandshakeFunc,
 		Decoder:       p2p.NOPDecoder{},
-		OnPeer:        OnPeer,
 	}
+	tcpTransport := p2p.NewTCPTransport(tcpTransportOpts)
 
 	storeOpts := StoreOpts{
 		Root:              listenAddr + "_network",
@@ -26,12 +22,16 @@ func makeServer(listenAddr string, nodes ...string) *FileServer {
 	}
 
 	fileServerOpts := FileServerOpts{
-		storeOpts:        storeOpts,
-		tcpTransportOpts: tcpTransportOpts,
-		bootstrapNodes:   nodes,
+		storeOpts:      storeOpts,
+		transport:      tcpTransport,
+		bootstrapNodes: nodes,
 	}
 
-	return NewFileServer(fileServerOpts)
+	s := NewFileServer(fileServerOpts)
+
+	tcpTransport.OnPeer = s.OnPeer
+
+	return s
 }
 
 func main() {
@@ -40,5 +40,13 @@ func main() {
 	go func() {
 		log.Fatal(s1.Start())
 	}()
-	s2.Start()
+	time.Sleep(2 * time.Second)
+	go s2.Start()
+	time.Sleep(2 * time.Second)
+
+	data := bytes.NewReader([]byte("my big data file here!"))
+
+	s2.StoreFile("key", data)
+
+	select {}
 }
